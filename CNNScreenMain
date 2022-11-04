@@ -1,0 +1,98 @@
+#!/bin/python3
+# %%
+
+import argparse
+import os
+import random
+from random import shuffle
+import sys
+import datetime
+import time
+import math
+import json
+from pathlib import Path
+
+import numpy as np
+import utils
+
+#AI suits
+import tensorflow as tf
+from tensorflow import keras
+# from tensorflow.keras import layers
+
+
+
+def get_args_parser():
+    parser = argparse.ArgumentParser('CNNarch', add_help=False)
+
+    parser.add_argument('--image_size', default=[50,50], type=list, help="""Size of the input image in px""")
+    parser.add_argument('--input_normalization', default='zerocenter', type=str,
+        choices=['zerocenter', 'none'], help="""Specify the data normalization to apply as a string. 
+        Valid values are 'zerocenter' or 'none'. Normalization is applied every time data is 
+        forward propagated through the input layer.""")
+    parser.add_argument("--number_channel", default=5, type=int,
+        help="Number of channel of the input image")
+    parser.add_argument("--number_classes", default=2, type=int,
+        help="number of output classes for classification")
+    parser.add_argument("--cnn_size", default=15, type=int,
+        help="The number of randomly sampled layers")
+    
+
+    parser.add_argument('--bool_validation', default=False, type=utils.bool_flag,
+        help="""true(default) or false. checks if the random architecture works and if 
+        not samples again. for long networks time increases exponentional.. """)
+    parser.add_argument('--probs_classificationlayers', default=[0,1,0], type=list, help="""Classification layers: Three different options are available. By default
+        only crossentropy loss function is used. 'classification_probs'
+        1. sse_loss; classification output layer with the sum of squares error (SSE) loss function 
+        2. crossentropy loss function
+        3. weighted crossentropy loss function with random class weights used.""")
+    parser.add_argument('--draw_prob_layer_class', default=(0.2,0.2,0.2,0.2,0.19,0.01), type=tuple, help="""probs of layer classes (the vector must add up to 1)
+        Order: 'Dense','Conv2D','Pooling','norm','regularization','flatten'""")
+    parser.add_argument('--probs_activationlayers', default=[0.143,0.143,0.143,0.143,0.143,0.143,0.142], type=list, help="""probs of activation class (the vector must add up to 1)
+        Order: reluLayer; leakyReluLayer; clippedReluLayer; eluLayer; preluLayer;TanhLayer; Sigmoid""")
+    parser.add_argument('--probs_poolinglayers', default=[0.5,0.5], type=list, help="""probs of pooling classes (the vector
+        must add up to 1). Order: maxpooling, average pooling""")
+    parser.add_argument('--normalization_class_probs', default=[0.5,0.5], type=list, help="""probs of normalization classes (the vector
+        must add up to 1). Order: crosschannel, batchnorm pooling""")
+
+    parser.add_argument('--gaussian_sigma', default=np.arange(1,5,0.1), type=np.array, help="""range of gaussion sigma values for the gaussian layer""")
+    parser.add_argument('--number_fully_nodes', default=np.arange(4,264,1), type=np.array, help="""range of number of nodes in the fully connected layer""")
+    parser.add_argument('--padding', default=np.arange(0,2,1), type=np.array, help="""range of number of padding in px""")
+    parser.add_argument('--output_dir', default=".", type=str, help='Path to save network.')
+
+    parser.add_argument('--seed', default=0, type=int, help='Random seed.')
+
+    return parser
+
+
+def get_randArch(args):
+    utils.fix_random_seeds(args.seed)
+    # print("git:\n  {}\n".format(utils.get_sha()))
+    # print("\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items())))
+    # cudnn.benchmark = True
+    model = tf.keras.models.Sequential()
+
+    for idx in range(args.cnn_size):
+        curr_layer_class = get_rand_layer_class(args.draw_prob_layer_class)
+
+    return     
+    
+
+def get_rand_layer_class(prob_layer_vector):
+    possible_layers_classes = ['Dense','Conv2D','Pooling','norm','regularization','flatten']
+    layer_name = random.choices(possible_layers_classes, weights=prob_layer_vector, k=1) 
+    return layer_name
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser('CNNarch', parents=[get_args_parser()])
+    args = parser.parse_args()
+    # Path(args.output_dir).mkdir(parents=True, exist_ok=True)
+    get_randArch(args)
+
+
+
+
+
+
+# %%
