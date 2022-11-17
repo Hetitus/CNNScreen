@@ -10,10 +10,6 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "args": [
-                "--number_channel", 
-                "2",
-            ],
             "console": "integratedTerminal"
         }
     ]
