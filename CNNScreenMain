@@ -10,6 +10,7 @@ import datetime
 import time
 import math
 import json
+import copy
 from pathlib import Path
 
 import numpy as np
@@ -17,10 +18,58 @@ import utils
 
 # AI suits
 import tensorflow as tf
-from tensorflow import keras
+#from tensorflow import keras
 # from tensorflow.keras import layers
 
+class Dense_L():
+    def __init__(self) -> None:
+        pass
 
+    def get_layer(self):
+        current_layer = tf.keras.layers.Dense(32)
+        return current_layer
+
+
+class Conv2D_L():
+    def __init__(self) -> None:
+        pass
+
+    def get_layer(self):
+        current_layer = tf.keras.layers.Conv2D(4, 3,padding="same")
+        return current_layer
+
+class Pool_L():
+    def __init__(self) -> None:
+        pass
+
+    def get_layer(self):
+        current_layer = tf.keras.layers.MaxPooling2D(padding="same")
+        return current_layer
+        
+
+class Batch_L():
+    def __init__(self) -> None:
+        pass
+
+    def get_layer(self):
+        current_layer = tf.keras.layers.BatchNormalization()
+        return current_layer
+
+class Norm_L():
+    def __init__(self) -> None:
+        pass
+
+    def get_layer(self):
+        current_layer = tf.keras.layers.Dropout(.2)
+        return current_layer
+
+class Flatten_L():
+    def __init__(self) -> None:
+        pass
+
+    def get_layer(self):
+        current_layer = tf.keras.layers.Flatten()
+        return current_layer
 
 def get_args_parser():
     parser = argparse.ArgumentParser('CNNarch', add_help=False)
@@ -46,7 +95,7 @@ def get_args_parser():
         1. sse_loss; classification output layer with the sum of squares error (SSE) loss function 
         2. crossentropy loss function
         3. weighted crossentropy loss function with random class weights used.""")
-    parser.add_argument('--draw_prob_layer_class', default=(0.2, 0.2, 0.2, 0.2, 0.19, 0.01), type=tuple, help="""probs of layer classes (the vector must add up to 1)
+    parser.add_argument('--draw_prob_layer_class', default=[0.2, 0.2, 0.2, 0.2, 0.19, 0.01], type=list, help="""probs of layer classes (the vector must add up to 1)
         Order: 'Dense','Conv2D','Pooling','norm','regularization','flatten'""")
     parser.add_argument('--probs_activationlayers', default=[0.143, 0.143, 0.143, 0.143, 0.143, 0.143, 0.142], type=list, help="""probs of activation class (the vector must add up to 1)
         Order: reluLayer; leakyReluLayer; clippedReluLayer; eluLayer; preluLayer;TanhLayer; Sigmoid""")
@@ -76,65 +125,67 @@ def get_randArch(args):
     # cudnn.benchmark = True
     layer_dict = make_layer_dict()
     model = tf.keras.models.Sequential()
-    model.add(tf.keras.Input(shape=args.image_size))
+   # model.add(tf.keras.Input(shape=args.image_size))
 
     for idx in range(args.cnn_size):
-        curr_layer_class = get_rand_layer_class(args.draw_prob_layer_class)
+        
+        curr_layer_class = get_rand_layer_class(args.draw_prob_layer_class,model)
         curr_layer = layer_dict[curr_layer_class[0]]
-        model.add(curr_layer)
-        print(model.layers[-1].output)
+        print(curr_layer_class[0])
+        model.add(curr_layer.get_layer())
+        print(len(model.layers))
+        print(model.layers[-1])
+        del curr_layer
+    
+    x = tf.ones((1,50, 50,2))
+    y = model(x)
+    model.summary()
     return
 
 
-def get_rand_layer_class(prob_layer_vector):
+def get_rand_layer_class(prob_layer_vector,model):
     possible_layers_classes = ['Dense', 'Conv2D',
                                'Pooling', 'norm', 'regularization', 'flatten']
+    curr_prob_vec = copy.deepcopy(prob_layer_vector)
+    if len(model.layers)>0:
+        last_layer_type = model.layers[-1].__class__.__name__
+        if last_layer_type == "Dense":
+            curr_prob_vec[1] = 0
+            curr_prob_vec[2] = 0
+            curr_prob_vec[0] += 0.15
+            curr_prob_vec[3] += 0.15
+            curr_prob_vec[4] += 0.1
+        
+        if last_layer_type == "Dropout":
+            curr_prob_vec[4] = 0
+            curr_prob_vec[0] += 0.1
+            curr_prob_vec[1] += 0.1
+
+        if last_layer_type == "BatchNormalization":
+            curr_prob_vec[3] = 0
+            curr_prob_vec[0] += 0.1
+            curr_prob_vec[1] += 0.1
+            
+
     layer_name = random.choices(
-        possible_layers_classes, weights=prob_layer_vector, k=1)
+        possible_layers_classes, weights=curr_prob_vec, k=1)
     return layer_name
 
 
 def make_layer_dict():
 
     layer_dict = {
-        "Dense": get_Dense_L(),
-        "Conv2D": get_Conv2D_L(),
-        "Pooling": get_Pool_L(),
-        "norm": get_Norm_L(),
-        "regularization": get_Regularization_L(),
-        "flatten": get_Flatten_L()
+        "Dense": Dense_L(),
+        "Conv2D": Conv2D_L(),
+        "Pooling": Pool_L(),
+        "norm": Batch_L(),
+        "regularization": Norm_L(),
+        "flatten": Flatten_L()
 
     }
 
     return layer_dict
 
-
-
-def get_Dense_L():
-    curr_layer = tf.keras.layers.Dense(32)
-    return curr_layer
-
-
-def get_Conv2D_L():
-    curr_layer = tf.keras.layers.Conv2D(4, 3,padding="same")
-    return curr_layer
-
-
-def get_Pool_L():
-    curr_layer = tf.keras.layers.MaxPooling2D()
-    return curr_layer
-
-
-def get_Norm_L():      
-    curr_layer = tf.keras.layers.BatchNormalization()
-    return curr_layer
-
-def get_Regularization_L():        
-    curr_layer = tf.keras.layers.Dropout(.2)
-    return curr_layer
-
-def get_Flatten_L():       
-    curr_layer = tf.keras.layers.Flatten()
 
 
 if __name__ == '__main__':
