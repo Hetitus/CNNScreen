@@ -18,58 +18,9 @@ import utils
 
 # AI suits
 import tensorflow as tf
-#from tensorflow import keras
-# from tensorflow.keras import layers
-
-class Dense_L():
-    def __init__(self) -> None:
-        pass
-
-    def get_layer(self):
-        current_layer = tf.keras.layers.Dense(32)
-        return current_layer
+import layers
 
 
-class Conv2D_L():
-    def __init__(self) -> None:
-        pass
-
-    def get_layer(self):
-        current_layer = tf.keras.layers.Conv2D(4, 3,padding="same")
-        return current_layer
-
-class Pool_L():
-    def __init__(self) -> None:
-        pass
-
-    def get_layer(self):
-        current_layer = tf.keras.layers.MaxPooling2D(padding="same")
-        return current_layer
-        
-
-class Batch_L():
-    def __init__(self) -> None:
-        pass
-
-    def get_layer(self):
-        current_layer = tf.keras.layers.BatchNormalization()
-        return current_layer
-
-class Norm_L():
-    def __init__(self) -> None:
-        pass
-
-    def get_layer(self):
-        current_layer = tf.keras.layers.Dropout(.2)
-        return current_layer
-
-class Flatten_L():
-    def __init__(self) -> None:
-        pass
-
-    def get_layer(self):
-        current_layer = tf.keras.layers.Flatten()
-        return current_layer
 
 def get_args_parser():
     parser = argparse.ArgumentParser('CNNarch', add_help=False)
@@ -95,10 +46,10 @@ def get_args_parser():
         1. sse_loss; classification output layer with the sum of squares error (SSE) loss function 
         2. crossentropy loss function
         3. weighted crossentropy loss function with random class weights used.""")
-    parser.add_argument('--draw_prob_layer_class', default=[0.2, 0.2, 0.2, 0.2, 0.19, 0.01], type=list, help="""probs of layer classes (the vector must add up to 1)
+    parser.add_argument('--draw_prob_layer_class', default=[0.15, 0.2, 0.145, 0.18, 0.1, 0.025,0.2], type=list, help="""probs of layer classes (the vector must add up to 1)
         Order: 'Dense','Conv2D','Pooling','norm','regularization','flatten'""")
-    parser.add_argument('--probs_activationlayers', default=[0.143, 0.143, 0.143, 0.143, 0.143, 0.143, 0.142], type=list, help="""probs of activation class (the vector must add up to 1)
-        Order: reluLayer; leakyReluLayer; clippedReluLayer; eluLayer; preluLayer;TanhLayer; Sigmoid""")
+    parser.add_argument('--probs_activationlayers', default=[0.143, 0.143, 0.143, 0.143, 0.143, 0.142], type=list, help="""probs of activation class (the vector must add up to 1)
+        Order: reluLayer; leakyReluLayer; eluLayer; preluLayer;thresholded_relu; Sigmoid""")
     parser.add_argument('--probs_poolinglayers', default=[0.5, 0.5], type=list, help="""probs of pooling classes (the vector
         must add up to 1). Order: maxpooling, average pooling""")
     parser.add_argument('--normalization_class_probs', default=[0.5, 0.5], type=list, help="""probs of normalization classes (the vector
@@ -131,7 +82,7 @@ def get_randArch(args):
         
         curr_layer_class = get_rand_layer_class(args.draw_prob_layer_class,model)
         curr_layer = layer_dict[curr_layer_class[0]]
-        print(curr_layer_class[0])
+        # print(curr_layer_class[0])
         model.add(curr_layer.get_layer())
         print(len(model.layers))
         print(model.layers[-1])
@@ -145,43 +96,64 @@ def get_randArch(args):
 
 def get_rand_layer_class(prob_layer_vector,model):
     possible_layers_classes = ['Dense', 'Conv2D',
-                               'Pooling', 'norm', 'regularization', 'flatten']
+                               'Pooling', 'norm', 'regularization', 'flatten','Activation']
     curr_prob_vec = copy.deepcopy(prob_layer_vector)
+    check_bool = False
     if len(model.layers)>0:
         last_layer_type = model.layers[-1].__class__.__name__
-        if last_layer_type == "Dense":
-            curr_prob_vec[1] = 0
-            curr_prob_vec[2] = 0
-            curr_prob_vec[0] += 0.15
-            curr_prob_vec[3] += 0.15
-            curr_prob_vec[4] += 0.1
-        
-        if last_layer_type == "Dropout":
-            curr_prob_vec[4] = 0
-            curr_prob_vec[0] += 0.1
-            curr_prob_vec[1] += 0.1
+        while check_bool == False:
 
-        if last_layer_type == "BatchNormalization":
-            curr_prob_vec[3] = 0
-            curr_prob_vec[0] += 0.1
-            curr_prob_vec[1] += 0.1
+            layer_name = random.choices(
+            possible_layers_classes, weights=curr_prob_vec, k=1)
+            if last_layer_type == "Dense":
+                if layer_name[0] == "Conv2D" or layer_name[0] == "Pooling":
+                    check_bool = False
+                else:
+                    check_bool = True
             
+            if last_layer_type == "Dropout":
+                if layer_name[0] == "regularization":
+                    check_bool = False
+                else:
+                    check_bool = True
 
-    layer_name = random.choices(
-        possible_layers_classes, weights=curr_prob_vec, k=1)
+            if last_layer_type == "BatchNormalization":
+                if layer_name[0] == "norm":
+                    check_bool = False
+                else:
+                    check_bool = True
+
+            if last_layer_type == "Flatten":
+                check_bool = True
+
+            if last_layer_type == "MaxPooling2D":
+                check_bool = True
+            
+            if last_layer_type == "Conv2D":
+                check_bool = True
+
+            if last_layer_type == "ThresholdedReLU" or last_layer_type == "Softmax" or last_layer_type == "ELU" or last_layer_type == "PReLU" or last_layer_type == "LeakyReLU" or last_layer_type == "ReLU":
+                if layer_name[0] == "Activation":
+                    check_bool = False
+                else:
+                    check_bool = True
+    else:     
+        layer_name = random.choices(
+            possible_layers_classes, weights=curr_prob_vec, k=1)
+    
     return layer_name
 
 
 def make_layer_dict():
 
     layer_dict = {
-        "Dense": Dense_L(),
-        "Conv2D": Conv2D_L(),
-        "Pooling": Pool_L(),
-        "norm": Batch_L(),
-        "regularization": Norm_L(),
-        "flatten": Flatten_L()
-
+        "Dense": layers.Dense_L(),
+        "Conv2D": layers.Conv2D_L(),
+        "Pooling": layers.Pool_L(),
+        "Activation":layers.Act_L(args.probs_activationlayers),
+        "norm": layers.Batch_L(),
+        "regularization": layers.Norm_L(),
+        "flatten": layers.Flatten_L()
     }
 
     return layer_dict
