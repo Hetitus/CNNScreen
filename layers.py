@@ -20,12 +20,13 @@ import utils
 import tensorflow as tf
 
 
-class Dense_L():
-    def __init__(self) -> None:
-        pass
+class Dense_L(object):
+    def __init__(self,numNodes):
+        self.numNodes_range = numNodes
 
     def get_layer(self):
-        current_layer = tf.keras.layers.Dense(32)
+        curr_nodes = np.random.randint(self.numNodes_range[0],self.numNodes_range[1])
+        current_layer = tf.keras.layers.Dense(curr_nodes)
         return current_layer
 
 class Act_L(object):
@@ -43,29 +44,40 @@ class Act_L(object):
         
 
 
-class Conv2D_L():
+class Conv2D_L(object):
     def __init__(self) -> None:
         pass
-
     def get_layer(self):
         current_layer = tf.keras.layers.Conv2D(4, 3,padding="same")
         return current_layer
 
 class Pool_L():
-    def __init__(self) -> None:
-        pass
-
+    def __init__(self,pool_prob):
+        self.pool_prob_vec = pool_prob
+        self.poss_lay_class = ['MaxPool','AveragePool']
+    
     def get_layer(self):
-        current_layer = tf.keras.layers.MaxPooling2D(padding="same")
+        layer_name = random.choices(
+            self.poss_lay_class, weights=self.pool_prob_vec, k=1)
+        if layer_name == 'MaxPool':
+            current_layer = tf.keras.layers.MaxPooling2D(padding="same")
+        else:
+            current_layer = tf.keras.layers.AveragePooling2D(padding="same")
         return current_layer
         
 
 class Batch_L():
-    def __init__(self) -> None:
-        pass
-
+    def __init__(self,norm_prob):
+        self.norm_prob_vec = norm_prob
+        self.poss_lay_class = ['Batch','Cross']
+    
     def get_layer(self):
-        current_layer = tf.keras.layers.BatchNormalization()
+        layer_name = random.choices(
+            self.poss_lay_class, weights=self.norm_prob_vec, k=1)
+        if layer_name == 'Batch':
+            current_layer = tf.keras.layers.BatchNormalization()
+        else:
+            current_layer = tf.keras.layers.UnitNormalization()
         return current_layer
 
 class Norm_L():

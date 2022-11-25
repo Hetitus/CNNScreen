@@ -12,6 +12,9 @@ import math
 import json
 import copy
 from pathlib import Path
+import uuid
+
+
 
 import numpy as np
 import utils
@@ -26,26 +29,28 @@ def get_args_parser():
     parser = argparse.ArgumentParser('CNNarch', add_help=False)
 
     parser.add_argument(
-        '--image_size', default=[50, 50,2], type=list, help="""Size of the input image in px""")
-    parser.add_argument('--input_normalization', default='zerocenter', type=str,
-                        choices=['zerocenter', 'none'], help="""Specify the data normalization to apply as a string. 
-        Valid values are 'zerocenter' or 'none'. Normalization is applied every time data is 
-        forward propagated through the input layer.""")
-    parser.add_argument("--number_channel", default=5, type=int,
-                        help="Number of channel of the input image")
+        '--screenID', default="CNNarch_screen", type=str, help="""ID of the current architecture screen""")
+    parser.add_argument(
+        '--image_size', default=[50, 50,2], type=list, help="""Size of the input image in px and channel number""")
+    # parser.add_argument('--input_normalization', default='zerocenter', type=str,
+    #                     choices=['zerocenter', 'none'], help="""Specify the data normalization to apply as a string. 
+    #     Valid values are 'zerocenter' or 'none'. Normalization is applied every time data is 
+    #     forward propagated through the input layer.""")
+    # parser.add_argument("--number_channel", default=5, type=int,
+    #                     help="Number of channel of the input image")
     parser.add_argument("--number_classes", default=2, type=int,
                         help="number of output classes for classification")
     parser.add_argument("--cnn_size", default=15, type=int,
                         help="The number of randomly sampled layers")
 
-    parser.add_argument('--bool_validation', default=False, type=utils.bool_flag,
-                        help="""true(default) or false. checks if the random architecture works and if 
-        not samples again. for long networks time increases exponentional.. """)
-    parser.add_argument('--probs_classificationlayers', default=[0, 1, 0], type=list, help="""Classification layers: Three different options are available. By default
-        only crossentropy loss function is used. 'classification_probs'
-        1. sse_loss; classification output layer with the sum of squares error (SSE) loss function 
-        2. crossentropy loss function
-        3. weighted crossentropy loss function with random class weights used.""")
+    # parser.add_argument('--bool_validation', default=False, type=utils.bool_flag,
+    #                     help="""true(default) or false. checks if the random architecture works and if 
+    #     not samples again. for long networks time increases exponentional.. """)
+    # parser.add_argument('--probs_classificationlayers', default=[0, 1, 0], type=list, help="""Classification layers: Three different options are available. By default
+    #     only crossentropy loss function is used. 'classification_probs'
+    #     1. sse_loss; classification output layer with the sum of squares error (SSE) loss function 
+    #     2. crossentropy loss function
+    #     3. weighted crossentropy loss function with random class weights used.""")
     parser.add_argument('--draw_prob_layer_class', default=[0.15, 0.2, 0.145, 0.18, 0.1, 0.025,0.2], type=list, help="""probs of layer classes (the vector must add up to 1)
         Order: 'Dense','Conv2D','Pooling','norm','regularization','flatten'""")
     parser.add_argument('--probs_activationlayers', default=[0.143, 0.143, 0.143, 0.143, 0.143, 0.142], type=list, help="""probs of activation class (the vector must add up to 1)
@@ -55,13 +60,13 @@ def get_args_parser():
     parser.add_argument('--normalization_class_probs', default=[0.5, 0.5], type=list, help="""probs of normalization classes (the vector
         must add up to 1). Order: crosschannel, batchnorm pooling""")
 
-    parser.add_argument('--gaussian_sigma', default=np.arange(1, 5, 0.1), type=np.array,
-                        help="""range of gaussion sigma values for the gaussian layer""")
-    parser.add_argument('--number_fully_nodes', default=np.arange(4, 264, 1),
+    # parser.add_argument('--gaussian_sigma', default=np.arange(1, 5, 0.1), type=np.array,
+    #                     help="""range of gaussion sigma values for the gaussian layer""")
+    parser.add_argument('--number_fully_nodes', default=[4,264],
                         type=np.array, help="""range of number of nodes in the fully connected layer""")
-    parser.add_argument('--padding', default=np.arange(0, 2, 1),
-                        type=np.array, help="""range of number of padding in px""")
-    parser.add_argument('--output_dir', default=".",
+    # parser.add_argument('--padding', default=np.arange(0, 2, 1),
+    #                     type=np.array, help="""range of number of padding in px""")
+    parser.add_argument('--output_dir', default="./untrained_networks",
                         type=str, help='Path to save network.')
 
     parser.add_argument('--seed', default=0, type=int, help='Random seed.')
@@ -76,22 +81,23 @@ def get_randArch(args):
     # cudnn.benchmark = True
     layer_dict = make_layer_dict()
     model = tf.keras.models.Sequential()
-   # model.add(tf.keras.Input(shape=args.image_size))
+    model.add(tf.keras.Input(shape=args.image_size))
 
     for idx in range(args.cnn_size):
-        
         curr_layer_class = get_rand_layer_class(args.draw_prob_layer_class,model)
         curr_layer = layer_dict[curr_layer_class[0]]
-        # print(curr_layer_class[0])
         model.add(curr_layer.get_layer())
-        print(len(model.layers))
-        print(model.layers[-1])
         del curr_layer
     
-    x = tf.ones((1,50, 50,2))
-    y = model(x)
+    model.add(tf.keras.layers.Dense(args.number_classes))
+
+    model.compile(optimizer='adam',
+                loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+                metrics=[tf.keras.metrics.SparseCategoricalAccuracy()])
+    # x = tf.ones((1,50, 50,2))
+    # y = model(x)
     model.summary()
-    return
+    return model
 
 
 def get_rand_layer_class(prob_layer_vector,model):
@@ -117,7 +123,7 @@ def get_rand_layer_class(prob_layer_vector,model):
                 else:
                     check_bool = True
 
-            if last_layer_type == "BatchNormalization":
+            if last_layer_type == "BatchNormalization" or last_layer_type == "UnitNormalization":
                 if layer_name[0] == "norm":
                     check_bool = False
                 else:
@@ -126,7 +132,7 @@ def get_rand_layer_class(prob_layer_vector,model):
             if last_layer_type == "Flatten":
                 check_bool = True
 
-            if last_layer_type == "MaxPooling2D":
+            if last_layer_type == "MaxPooling2D" or last_layer_type == "AveragePooling2D":
                 check_bool = True
             
             if last_layer_type == "Conv2D":
@@ -147,11 +153,11 @@ def get_rand_layer_class(prob_layer_vector,model):
 def make_layer_dict():
 
     layer_dict = {
-        "Dense": layers.Dense_L(),
+        "Dense": layers.Dense_L(args.number_fully_nodes),
         "Conv2D": layers.Conv2D_L(),
-        "Pooling": layers.Pool_L(),
+        "Pooling": layers.Pool_L(args.probs_poolinglayers),
         "Activation":layers.Act_L(args.probs_activationlayers),
-        "norm": layers.Batch_L(),
+        "norm": layers.Batch_L(args.normalization_class_probs),
         "regularization": layers.Norm_L(),
         "flatten": layers.Flatten_L()
     }
@@ -164,7 +170,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('CNNarch', parents=[get_args_parser()])
     args = parser.parse_args()
     # Path(args.output_dir).mkdir(parents=True, exist_ok=True)
-    get_randArch(args)
+    model2save = get_randArch(args)
+    if not os.path.exists(args.output_dir):
+      os.makedirs(args.output_dir)
 
+    save_str = args.output_dir + "/"+ str(uuid.uuid4()) + "_" + args.screenID
+    model2save.save(save_str)
 
 # %%
